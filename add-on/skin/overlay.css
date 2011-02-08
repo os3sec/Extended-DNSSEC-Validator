@@ -1,0 +1,81 @@
+/* ***** BEGIN LICENSE BLOCK *****
+This file is part of Extended DNSSEC Validator Add-on.
+
+Extended DNSSEC Validator Add-on is free software: you can redistribute it and/or
+modify it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or (at your
+option) any later version.
+
+Extended DNSSEC Validator Add-on is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY
+or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+more details.
+
+You should have received a copy of the GNU General Public License along with
+Extended DNSSEC Validator Add-on.  If not, see <http://www.gnu.org/licenses/>.
+***** END LICENSE BLOCK ***** */
+
+
+/* Identity popup dnssec icon */
+#identity-popup-dnssec-icon {
+  height: 38px;
+  width: 130px;
+  padding: 0;
+  -moz-image-region: rect(0px, 130px, 38px, 0px);
+  list-style-image: url("chrome://extval/skin/logo.png");
+}
+/* grey */
+#identity-popup-dnssec-icon.domainUnsecured,
+#identity-popup-dnssec-icon.nxdomainUnsecured {
+  -moz-image-region: rect(0px, 130px, 38px, 0px);
+}
+/* orange */
+#identity-popup-dnssec-icon.secureTransportInsecure {
+  -moz-image-region: rect(0px, 520px, 38px, 390px);
+}
+/* red */
+#identity-popup-dnssec-icon.secureAddressSpoofed,
+#identity-popup-dnssec-icon.domainBogus,
+#identity-popup-dnssec-icon.certInvalidDNSSEC {
+  -moz-image-region: rect(0px, 390px, 38px, 260px);
+}
+/* green */
+#identity-popup-dnssec-icon.secureNxdomain,
+#identity-popup-dnssec-icon.certDNSSEC,
+#identity-popup-dnssec-icon.certCA,
+#identity-popup-dnssec-icon.certDNSSEC_CA {
+  -moz-image-region: rect(0px, 260px, 38px, 130px);
+}
+
+/* Fix default relocated identity popup icon */
+#identity-popup-status-box {
+  -moz-box-align: end;
+}
+#identity-popup.verifiedDomain > #identity-popup-container > #identity-popup-status-box > #identity-popup-icon {
+  -moz-image-region: rect(64px, 64px, 128px, 0px);
+}
+#identity-popup.verifiedIdentity > #identity-popup-container > #identity-popup-status-box > #identity-popup-icon {
+  -moz-image-region: rect(128px, 64px, 192px, 0px);
+}
+
+#identity-popup-extval-label {
+  font-weight: bold;
+  max-width: 300px;
+  min-height: 38px;
+}
+
+/* Switch to https button */
+#switch-https-box {
+  background-color: rgb(95%,95%,95%);
+  background-image: -moz-linear-gradient(rgba(170,170,170,.25), rgba(0,0,0,.3));
+  box-shadow: 0 0 0 1px rgba(0,0,0,.1) inset;
+  border-radius: 1.5px;
+  width: 26px;
+  margin-left: 2px;
+}
+#switch-https-box.disabled {
+  display: none;
+}
+#switch-https-box > #switch-https-icon {
+  list-style-image: url("chrome://extval/skin/unsecure.png");
+}

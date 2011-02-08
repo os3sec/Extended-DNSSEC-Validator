@@ -1,0 +1,4 @@
+content	extval	chrome/content/
+locale	extval	en-US	chrome/locale/en-US/
+skin	extval	classic/1.0	chrome/skin/
+overlay	chrome://browser/content/browser.xul	chrome://extval/content/ff-overlay.xul

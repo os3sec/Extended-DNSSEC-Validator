@@ -1,0 +1,493 @@
+# Copyright 2007 NLnet Labs
+# See the file LICENSE for the license
+
+debug_enabled=@debug_enabled@
+ifeq "$(QUIET)" ""
+ifeq ($(debug_enabled),yes)
+  QUIET=yes
+  LIBTOOLQUIET=yes
+else
+  QUIET=no
+  LIBTOOLQUIET=yes
+endif
+endif
+
+ifeq "$(QUIET)" "yes"
+  Q=@
+  INFO=@echo
+else
+  Q=
+  INFO=@:
+endif
+
+SHELL=@SHELL@
+VERSION=@PACKAGE_VERSION@
+srcdir=@srcdir@
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+bindir=@bindir@
+sbindir=@sbindir@
+mandir=@mandir@
+libdir=@libdir@
+# datarootdir is here to please some checkers, use datadir.
+datarootdir=@datarootdir@
+datadir=@datadir@
+includedir=@includedir@
+doxygen=@doxygen@
+libtool=@libtool@
+ldnsdir=@ldnsdir@
+staticexe=@staticexe@
+EXEEXT=@EXEEXT@
+configfile=@ub_conf_file@
+UNBOUND_RUN_DIR=@UNBOUND_RUN_DIR@
+CHECKLOCK_SRC=@CHECKLOCK_SRC@
+UB_ON_WINDOWS=@UB_ON_WINDOWS@
+WITH_PYTHONMODULE=@WITH_PYTHONMODULE@
+WITH_PYUNBOUND=@WITH_PYUNBOUND@
+PYTHON_SITE_PKG=@PYTHON_SITE_PKG@
+
+SWIG=@SWIG@
+YACC=@YACC@
+LEX=@LEX@
+STRIP=@STRIP@
+CC=@CC@
+CPPFLAGS=-I. @CPPFLAGS@
+ifneq "$(srcdir)" "."
+  CPPFLAGS:=-I$(srcdir) $(CPPFLAGS)
+endif
+CPPFLAGS:=$(strip $(CPPFLAGS))
+CFLAGS=@CFLAGS@
+LDFLAGS=@LDFLAGS@
+LIBS=$(strip @LIBS@)
+LIBOBJS=@LIBOBJS@
+RUNTIME_PATH=@RUNTIME_PATH@
+DEPFLAG=@DEPFLAG@
+DATE=$(shell date +%Y%m%d)
+LIBTOOL=$(libtool)
+ifeq "$(LIBTOOLQUIET)" "yes"
+  LIBTOOL+=--quiet
+endif
+BUILD=build/
+
+WINDRES=@WINDRES@
+LINT=splint
+LINTFLAGS=+quiet -weak -warnposix -unrecog -Din_addr_t=uint32_t -Du_int=unsigned -Du_char=uint8_t -preproc -Drlimit=rlimit64 -D__gnuc_va_list=va_list
+#-Dglob64=glob -Dglobfree64=globfree
+# compat with openssl linux edition.
+LINTFLAGS+="-DBN_ULONG=unsigned long" -Dkrb5_int32=int "-Dkrb5_ui_4=unsigned int" -DPQ_64BIT=uint64_t -DRC4_INT=unsigned -fixedformalarray -D"ENGINE=unsigned" -D"RSA=unsigned" -D"DSA=unsigned" -D"EVP_PKEY=unsigned" -D"EVP_MD=unsigned" -D"SSL=unsigned" -D"SSL_CTX=unsigned" -D"X509=unsigned" -D"RC4_KEY=unsigned" -D"EVP_MD_CTX=unsigned"
+# compat with NetBSD
+ifeq "$(shell uname)" "NetBSD"
+LINTFLAGS+="-D__RENAME(x)=" -D_NETINET_IN_H_
+endif
+# compat with OpenBSD
+LINTFLAGS+="-Dsigset_t=long"
+# FreeBSD8
+LINTFLAGS+="-D__uint16_t=uint16_t"
+
+INSTALL=$(srcdir)/install-sh
+ifeq "$(WITH_PYTHONMODULE)" "yes"
+PYTHONMOD_SRC=$(srcdir)/pythonmod/*.c
+endif
+
+COMMON_SRC=$(patsubst $(srcdir)/%,%, $(wildcard $(srcdir)/services/*.c \
+	$(srcdir)/services/cache/*.c $(srcdir)/util/*.c \
+	$(srcdir)/util/data/*.c $(srcdir)/util/storage/*.c \
+	$(srcdir)/iterator/*.c $(srcdir)/validator/*.c $(PYTHONMOD_SRC))) \
+	util/configparser.c util/configlexer.c $(CHECKLOCK_SRC)
+COMMON_OBJ=$(addprefix $(BUILD),$(COMMON_SRC:.c=.lo))
+COMPAT_SRC=$(addprefix compat/,$(LIBOBJS:.o=.c))
+COMPAT_OBJ=$(addprefix $(BUILD)compat/,$(LIBOBJS:.o=.lo))
+UNITTEST_SRC=$(patsubst $(srcdir)/%,%, \
+	$(wildcard $(srcdir)/testcode/unit*.c)) \
+	testcode/readhex.c testcode/ldns-testpkts.c smallapp/worker_cb.c \
+	$(COMMON_SRC)
+UNITTEST_OBJ=$(addprefix $(BUILD),$(UNITTEST_SRC:.c=.lo)) $(COMPAT_OBJ)
+DAEMON_SRC=$(patsubst $(srcdir)/%,%, $(wildcard $(srcdir)/daemon/*.c)) \
+	$(COMMON_SRC)
+DAEMON_OBJ=$(addprefix $(BUILD),$(DAEMON_SRC:.c=.lo)) $(COMPAT_OBJ)
+CHECKCONF_SRC=smallapp/unbound-checkconf.c smallapp/worker_cb.c $(COMMON_SRC)
+CHECKCONF_OBJ=$(addprefix $(BUILD),$(CHECKCONF_SRC:.c=.lo)) $(COMPAT_OBJ)
+CONTROL_SRC=smallapp/unbound-control.c smallapp/worker_cb.c $(COMMON_SRC)
+CONTROL_OBJ=$(addprefix $(BUILD),$(CONTROL_SRC:.c=.lo)) $(COMPAT_OBJ)
+HOST_SRC=smallapp/unbound-host.c
+HOST_OBJ=$(addprefix $(BUILD),$(HOST_SRC:.c=.lo)) $(filter-out $(BUILD)compat/ctime_r.lo, $(COMPAT_OBJ))
+UBANCHOR_SRC=smallapp/unbound-anchor.c
+UBANCHOR_OBJ=$(addprefix $(BUILD),$(UBANCHOR_SRC:.c=.lo)) $(filter-out $(BUILD)compat/ctime_r.lo, $(COMPAT_OBJ))
+TESTBOUND_SRC=testcode/testbound.c testcode/ldns-testpkts.c \
+	daemon/worker.c daemon/acl_list.c daemon/daemon.c daemon/stats.c \
+	testcode/replay.c testcode/fake_event.c $(filter-out util/netevent.c \
+	services/listen_dnsport.c services/outside_network.c, $(COMMON_SRC))
+TESTBOUND_OBJ=$(addprefix $(BUILD),$(TESTBOUND_SRC:.c=.lo)) $(COMPAT_OBJ)
+LOCKVERIFY_SRC=testcode/lock_verify.c smallapp/worker_cb.c $(COMMON_SRC)
+LOCKVERIFY_OBJ=$(addprefix $(BUILD),$(LOCKVERIFY_SRC:.c=.lo)) $(COMPAT_OBJ)
+PETAL_SRC=testcode/petal.c
+PETAL_OBJ=$(addprefix $(BUILD),$(PETAL_SRC:.c=.lo)) $(filter-out $(BUILD)compat/ctime_r.lo, $(COMPAT_OBJ))
+PKTVIEW_SRC=testcode/pktview.c testcode/readhex.c smallapp/worker_cb.c \
+	$(COMMON_SRC)
+PKTVIEW_OBJ=$(addprefix $(BUILD),$(PKTVIEW_SRC:.c=.lo)) $(COMPAT_OBJ)
+SIGNIT_SRC=testcode/signit.c smallapp/worker_cb.c $(COMMON_SRC)
+SIGNIT_OBJ=$(addprefix $(BUILD),$(SIGNIT_SRC:.c=.lo)) $(COMPAT_OBJ)
+MEMSTATS_SRC=testcode/memstats.c smallapp/worker_cb.c $(COMMON_SRC)
+MEMSTATS_OBJ=$(addprefix $(BUILD),$(MEMSTATS_SRC:.c=.lo)) $(COMPAT_OBJ)
+ASYNCLOOK_SRC=testcode/asynclook.c util/log.c util/locks.c
+ASYNCLOOK_OBJ=$(addprefix $(BUILD),$(ASYNCLOOK_SRC:.c=.lo)) $(COMPAT_OBJ)
+STREAMTCP_SRC=testcode/streamtcp.c smallapp/worker_cb.c $(COMMON_SRC)
+STREAMTCP_OBJ=$(addprefix $(BUILD),$(STREAMTCP_SRC:.c=.lo)) $(COMPAT_OBJ)
+PERF_SRC=testcode/perf.c smallapp/worker_cb.c $(COMMON_SRC)
+PERF_OBJ=$(addprefix $(BUILD),$(PERF_SRC:.c=.lo)) $(COMPAT_OBJ)
+DELAYER_SRC=testcode/delayer.c smallapp/worker_cb.c $(COMMON_SRC)
+DELAYER_OBJ=$(addprefix $(BUILD),$(DELAYER_SRC:.c=.lo)) $(COMPAT_OBJ)
+HARVEST_SRC=testcode/harvest.c
+HARVEST_OBJ=$(addprefix $(BUILD),$(HARVEST_SRC:.c=.lo)) $(COMPAT_OBJ)
+LIBUNBOUND_SRC=$(patsubst $(srcdir)/%,%, \
+	$(wildcard $(srcdir)/libunbound/*.c) $(COMMON_SRC))
+LIBUNBOUND_OBJ=$(addprefix $(BUILD),$(LIBUNBOUND_SRC:.c=.lo)) $(COMPAT_OBJ)
+ALL_SRC=$(sort $(COMMON_SRC) $(UNITTEST_SRC) $(DAEMON_SRC) \
+	$(TESTBOUND_SRC) $(LOCKVERIFY_SRC) $(PKTVIEW_SRC) $(SIGNIT_SRC) \
+	$(MEMSTATS_SRC) $(CHECKCONF_SRC) $(LIBUNBOUND_SRC) $(HOST_SRC) \
+	$(ASYNCLOOK_SRC) $(STREAMTCP_SRC) $(PERF_SRC) $(DELAYER_SRC) \
+	$(HARVEST_SRC) $(CONTROL_SRC) $(UBANCHOR_SRC) $(PETAL_SRC))
+ALL_OBJ=$(addprefix $(BUILD),$(ALL_SRC:.c=.lo) \
+	$(addprefix compat/,$(LIBOBJS:.o=.lo))) $(COMPAT_OBJ)
+
+ifeq "$(UB_ON_WINDOWS)" "yes"
+  DAEMON_SRC+=winrc/win_svc.c winrc/w_inst.c
+  DAEMON_OBJ+=$(BUILD)winrc/rsrc_unbound.o $(BUILD)winrc/win_svc.lo
+  HOST_OBJ+=$(BUILD)winrc/rsrc_unbound_host.o
+  UBANCHOR_OBJ+=$(BUILD)winrc/rsrc_unbound_anchor.o
+  CONTROL_OBJ+=$(BUILD)winrc/rsrc_unbound_control.o
+  CHECKCONF_OBJ+=$(BUILD)winrc/rsrc_unbound_checkconf.o
+
+  WINAPPS=$(addsuffix $(EXEEXT), unbound-service-install \
+  	unbound-service-remove anchor-update)
+  COMPAT_WINAPP=$(filter-out $(BUILD)compat/ctime_r.lo, $(COMPAT_OBJ))
+  SVCINST_SRC=winrc/unbound-service-install.c winrc/w_inst.c
+  SVCINST_OBJ=$(addprefix $(BUILD),$(SVCINST_SRC:.c=.lo)) $(COMPAT_WINAPP) \
+	$(BUILD)winrc/rsrc_svcinst.o
+  SVCUNINST_SRC=winrc/unbound-service-remove.c winrc/w_inst.c
+  SVCUNINST_OBJ=$(addprefix $(BUILD),$(SVCUNINST_SRC:.c=.lo)) $(COMPAT_WINAPP) \
+	$(BUILD)winrc/rsrc_svcuninst.o
+  ANCHORUPD_SRC=winrc/anchor-update.c
+  ANCHORUPD_OBJ=$(addprefix $(BUILD),$(ANCHORUPD_SRC:.c=.lo)) $(COMPAT_WINAPP) \
+        $(BUILD)winrc/rsrc_anchorupd.o
+  ALL_SRC:=$(sort $(ALL_SRC) $(SVCINST_SRC) $(SVCUNINST_SRC) $(ANCHORUPD_SRC))
+  ALL_OBJ:=$(sort $(ALL_OBJ) $(SVCINST_OBJ) $(SVCUNINST_OBJ) $(ANCHORUPD_OBJ))
+
+$(BUILD)%.o:      $(srcdir)/%.rc $(srcdir)/config.h
+	$(INFO) Resource $<
+	@if test ! -z "$(ldnsdir)" -a ! -e $(ldnsdir)/include/ldns/ldns.h; \
+		then (cd $(ldnsdir); $(MAKE) copy-headers); fi
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$Q$(WINDRES) $(CPPFLAGS) $< $@
+endif
+
+COMPILE=$(LIBTOOL) --tag=CC --mode=compile $(CC) $(CPPFLAGS) $(CFLAGS)
+LINK=$(LIBTOOL) --tag=CC --mode=link $(strip $(CC) $(staticexe) $(RUNTIME_PATH) $(CFLAGS) $(LDFLAGS))
+LINK_LIB=$(LIBTOOL) --tag=CC --mode=link $(strip $(CC) $(RUNTIME_PATH) $(CFLAGS) $(LDFLAGS) $(staticexe) -version-number @LIBUNBOUND_CURRENT@:@LIBUNBOUND_REVISION@:@LIBUNBOUND_AGE@ -no-undefined)
+
+.PHONY:	clean realclean doc lint all install uninstall tests test download_ldns strip lib longtest longcheck check
+
+$(BUILD)%.lo:    $(srcdir)/%.c 
+	$(INFO) Build $<
+	@if test ! -z "$(ldnsdir)" -a ! -e $(ldnsdir)/include/ldns/ldns.h; \
+		then (cd $(ldnsdir); $(MAKE) copy-headers); fi
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$Q$(COMPILE) -o $@ -c $<
+
+all:	$(COMMON_OBJ) unbound$(EXEEXT) unbound-checkconf$(EXEEXT) lib unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup $(WINAPPS)
+
+TEST_BIN=$(addsuffix $(EXEEXT),asynclook delayer harvest lock-verify \
+	memstats perf petal pktview signit streamtcp testbound unittest)
+tests:	all $(TEST_BIN)
+
+check: test
+longcheck: longtest
+
+test:	unittest$(EXEEXT) testbound$(EXEEXT)
+	./unittest$(EXEEXT)
+	./testbound$(EXEEXT) -s
+	for x in testdata/*.rpl; do echo -n "$$x "; if ./testbound$(EXEEXT) -p $$x >/dev/null 2>&1; then echo OK; else echo failed; exit 1; fi done
+	@echo test OK
+
+longtest:	tests
+	if test -x "`which bash`"; then bash testcode/do-tests.sh; else sh testcode/do-tests.sh; fi
+
+lib:	libunbound.la
+
+ifeq ($(patsubst ldns-src%,ldns-src,$(ldnsdir)),ldns-src)
+ldnslib=$(ldnsdir)/lib/libldns.a
+$(ldnslib):	$(ldnsdir)/lib
+$(ldnsdir)/lib:
+	@if test ! -z "$(ldnsdir)"; \
+	then (cd $(ldnsdir) && $(MAKE)); fi
+else
+ldnslib=
+endif
+
+libunbound.la:	$(LIBUNBOUND_OBJ) $(ldnslib)
+	$(INFO) Link $@
+ifeq ($(CHECKLOCK_SRC),)
+	$Q$(LINK_LIB) -export-symbols $(srcdir)/libunbound/ubsyms.def -o $@ $(sort $(LIBUNBOUND_OBJ)) -rpath $(libdir) $(LIBS)
+else
+	cp $(srcdir)/libunbound/ubsyms.def $(BUILD)clubsyms.def
+	echo lock_protect >> $(BUILD)clubsyms.def
+	echo lock_unprotect >> $(BUILD)clubsyms.def
+	echo lock_get_mem >> $(BUILD)clubsyms.def
+	echo checklock_start >> $(BUILD)clubsyms.def
+	echo checklock_stop >> $(BUILD)clubsyms.def
+	echo checklock_lock >> $(BUILD)clubsyms.def
+	echo checklock_unlock >> $(BUILD)clubsyms.def
+	echo checklock_init >> $(BUILD)clubsyms.def
+	echo checklock_thrcreate >> $(BUILD)clubsyms.def
+	echo checklock_thrjoin >> $(BUILD)clubsyms.def
+	$Q$(LINK_LIB) -export-symbols $(BUILD)clubsyms.def -o $@ $(sort $(LIBUNBOUND_OBJ)) -rpath $(libdir) $(LIBS)
+endif
+
+unbound$(EXEEXT):	$(DAEMON_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(DAEMON_OBJ)) -lssl $(LIBS)
+
+unbound-checkconf$(EXEEXT):	$(CHECKCONF_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(CHECKCONF_OBJ)) $(LIBS)
+
+unbound-control$(EXEEXT):	$(CONTROL_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(CONTROL_OBJ)) -lssl $(LIBS)
+
+unbound-host$(EXEEXT):	$(HOST_OBJ) libunbound.la $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(HOST_OBJ)) -L. -L.libs -lunbound $(LIBS)
+
+unbound-anchor$(EXEEXT):	$(UBANCHOR_OBJ) libunbound.la $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(UBANCHOR_OBJ)) -L. -L.libs -lunbound -lexpat -lssl $(LIBS)
+
+unbound-service-install$(EXEEXT):	$(SVCINST_OBJ)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(SVCINST_OBJ)) $(LIBS)
+
+unbound-service-remove$(EXEEXT):	$(SVCUNINST_OBJ)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(SVCUNINST_OBJ)) $(LIBS)
+
+anchor-update$(EXEEXT):  $(ANCHORUPD_OBJ) libunbound.la $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(ANCHORUPD_OBJ)) -L. -L.libs -lunbound $(LIBS)
+
+unittest$(EXEEXT):	$(UNITTEST_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(UNITTEST_OBJ)) $(LIBS)
+
+testbound$(EXEEXT):	$(TESTBOUND_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(TESTBOUND_OBJ)) -lssl $(LIBS)
+
+lock-verify$(EXEEXT):	$(LOCKVERIFY_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(LOCKVERIFY_OBJ)) $(LIBS)
+
+petal$(EXEEXT):	$(PETAL_OBJ)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(PETAL_OBJ)) -lssl $(LIBS)
+
+pktview$(EXEEXT):	$(PKTVIEW_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(PKTVIEW_OBJ)) $(LIBS)
+
+signit$(EXEEXT):	$(SIGNIT_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(SIGNIT_OBJ)) $(LIBS)
+
+memstats$(EXEEXT):	$(MEMSTATS_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(MEMSTATS_OBJ)) $(LIBS)
+
+asynclook$(EXEEXT):	$(ASYNCLOOK_OBJ) $(ldnslib) libunbound.la
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(ASYNCLOOK_OBJ)) $(LIBS) -L. -L.libs -lunbound
+
+streamtcp$(EXEEXT):	$(STREAMTCP_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(STREAMTCP_OBJ)) $(LIBS)
+
+perf$(EXEEXT):	$(PERF_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(PERF_OBJ)) $(LIBS)
+
+delayer$(EXEEXT):	$(DELAYER_OBJ) $(ldnslib)
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(DELAYER_OBJ)) $(LIBS)
+
+harvest$(EXEEXT):	$(HARVEST_OBJ) $(ldnslib) libunbound.la
+	$(INFO) Link $@
+	$Q$(LINK) -o $@ $(sort $(HARVEST_OBJ)) $(LIBS) -L. -L.libs -lunbound
+
+unbound-control-setup:	$(srcdir)/smallapp/unbound-control-setup.sh
+	$(INFO) Sed $@
+	$Qsed -e 's:^DESTDIR=.*$$:DESTDIR=$(UNBOUND_RUN_DIR):' < $< > $@
+	$Q-chmod +x $@
+
+#testcode/ldns-testpkts.c:	$(ldnsdir)/examples/ldns-testpkts.c \
+#			$(ldnsdir)/examples/ldns-testpkts.h
+#	cp $(ldnsdir)/examples/ldns-testpkts.c testcode/ldns-testpkts.c
+#	cp $(ldnsdir)/examples/ldns-testpkts.h testcode/ldns-testpkts.h
+
+ifeq "$(WITH_PYTHONMODULE)" "yes"
+$(srcdir)/pythonmod/pythonmod.c:	pythonmod/interface.h
+%.h:	$(srcdir)/%.i $(srcdir)/config.h
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$(INFO) Swig $<
+	$Q$(SWIG) $(CPPFLAGS) -o $@ -python $<
+endif
+
+ifeq "$(WITH_PYUNBOUND)" "yes"
+libunbound/python/libunbound_wrap.c:	$(srcdir)/libunbound/python/libunbound.i $(srcdir)/libunbound/unbound.h
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$(INFO) Swig $<
+	$Q$(SWIG) -python -o $@ $(CPPFLAGS) $<
+
+all:	_unbound.la
+_unbound.la:	$(BUILD)libunbound/python/libunbound_wrap.lo libunbound.la
+	$(INFO) Link $@
+	$Q$(LIBTOOL) --tag=CC --mode=link $(strip $(CC) $(RUNTIME_PATH) $(CFLAGS) $(LDFLAGS) -module -version-number @LIBUNBOUND_CURRENT@:@LIBUNBOUND_REVISION@:@LIBUNBOUND_AGE@ -no-undefined) -o $@ $< -rpath $(PYTHON_SITE_PKG) L. -L.libs -lunbound $(LIBS)
+endif
+
+util/config_file.c:	util/configparser.h
+util/configlexer.c:  $(srcdir)/util/configlexer.lex util/configparser.h
+	$(INFO) Lex $<
+ifeq "$(strip $(LEX))" ":"
+	$Qecho "rebuild lexer, but no lex program, skipped"
+else
+	@-if test ! -d util; then $(INSTALL) -d util; fi
+	$Qecho "#include \"config.h\"" > $@
+	$Qecho "#include \"util/configyyrename.h\"" >> $@
+	$Q$(LEX) -t $< >> $@
+endif
+
+util/configparser.c util/configparser.h:  $(srcdir)/util/configparser.y
+	$(INFO) Yacc $<
+	@-if test ! -d util; then $(INSTALL) -d util; fi
+	$Q$(YACC) -d -o util/configparser.c $<
+
+clean:
+	rm -f *.o *.d *.lo *~ tags
+	rm -f unbound$(EXEEXT) unbound-checkconf$(EXEEXT) unbound-host$(EXEEXT) unbound-control$(EXEEXT) unbound-anchor$(EXEEXT) unbound-control-setup libunbound.la
+	rm -rf autom4te.cache .libs build doc/html doc/xml
+
+realclean: clean
+	rm -f config.status config.log config.h.in config.h
+	rm -f configure config.sub config.guess ltmain.sh aclocal.m4 libtool
+	rm -f util/configlexer.c util/configparser.c util/configparser.h
+	rm -f $(TEST_BIN)
+	if test -d ldns-src; then rm -rf ldns-src; fi
+	rm -f Makefile 
+
+$(BUILD)%.lint:    $(srcdir)/%.c 
+	$(INFO) Lint $<
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$Q$(LINT) $(LINTFLAGS) -I. -I$(srcdir) -I$(ldnsdir)/include $<
+	$Qtouch $@
+
+lint:	$(addprefix $(BUILD),$(filter-out util/configparser.lint,$(filter-out util/configlexer.lint,$(sort $(ALL_SRC:.c=.lint)))))
+
+tags:	$(srcdir)/*.[ch] $(srcdir)/*/*.[ch]
+	ctags  -f $(srcdir)/tags $(srcdir)/*.[ch] $(srcdir)/*/*.[ch]
+
+doc:
+	if test -n "$(doxygen)"; then \
+		$(doxygen) $(srcdir)/doc/unbound.doxygen; fi
+ifeq "$(findstring yes,$(WITH_PYUNBOUND)$(WITH_PYTHONMODULE))" "yes"
+	if test -x "`which sphinx-build 2>&1`"; then \
+		sphinx-build -b html pythonmod/doc doc/html/pythonmod; \
+		sphinx-build -b html libunbound/python/doc doc/html/pyunbound;\
+	fi
+endif
+
+strip:
+	$(STRIP) unbound$(EXEEXT)
+	$(STRIP) unbound-checkconf$(EXEEXT)
+	$(STRIP) unbound-control$(EXEEXT)
+	$(STRIP) unbound-host$(EXEEXT)
+	$(STRIP) unbound-anchor$(EXEEXT)
+
+install:	all
+	$(INSTALL) -m 755 -d $(DESTDIR)$(sbindir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man5
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man3
+	$(INSTALL) -m 755 -d $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 755 -d $(DESTDIR)$(libdir)
+	$(INSTALL) -m 755 -d $(DESTDIR)$(includedir)
+	$(LIBTOOL) --mode=install cp unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound$(EXEEXT)
+	$(LIBTOOL) --mode=install cp unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT)
+	$(LIBTOOL) --mode=install cp unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT)
+	$(LIBTOOL) --mode=install cp unbound-host$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-host$(EXEEXT)
+	$(LIBTOOL) --mode=install cp unbound-anchor$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-anchor$(EXEEXT)
+ifeq "$(WITH_PYTHONMODULE)" "yes"
+	$(INSTALL) -m 755 -d $(DESTDIR)$(PYTHON_SITE_PKG)
+	$(INSTALL) -c -m 644 pythonmod/unboundmodule.py $(DESTDIR)$(PYTHON_SITE_PKG)/unboundmodule.py
+endif
+ifeq "$(WITH_PYUNBOUND)" "yes"
+	$(INSTALL) -m 755 -d $(DESTDIR)$(PYTHON_SITE_PKG)
+	$(INSTALL) -c -m 644 libunbound/python/unbound.py $(DESTDIR)$(PYTHON_SITE_PKG)/unbound.py
+	$(LIBTOOL) --mode=install cp _unbound.la $(DESTDIR)$(PYTHON_SITE_PKG)
+	$(LIBTOOL) --mode=finish $(DESTDIR)$(PYTHON_SITE_PKG)
+endif
+	$(INSTALL) -c -m 644 doc/unbound.8 $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -c -m 644 doc/unbound-checkconf.8 $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -c -m 644 doc/unbound-control.8 $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -c -m 644 doc/unbound-anchor.8 $(DESTDIR)$(mandir)/man8
+	$(INSTALL) -c -m 644 doc/unbound.conf.5 $(DESTDIR)$(mandir)/man5
+	$(INSTALL) -c -m 644 $(srcdir)/doc/unbound-host.1 $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -c -m 644 doc/libunbound.3 $(DESTDIR)$(mandir)/man3
+	$(INSTALL) -c -m 755 unbound-control-setup $(DESTDIR)$(sbindir)/unbound-control-setup
+	if test ! -e $(DESTDIR)$(configfile); then $(INSTALL) -d `dirname $(DESTDIR)$(configfile)`; $(INSTALL) -c -m 644 doc/example.conf $(DESTDIR)$(configfile); fi
+	$(LIBTOOL) --mode=install cp $(srcdir)/libunbound/unbound.h $(DESTDIR)$(includedir)/unbound.h
+	$(LIBTOOL) --mode=install cp libunbound.la $(DESTDIR)$(libdir)
+	$(LIBTOOL) --mode=finish $(DESTDIR)$(libdir)
+
+uninstall:
+	rm -f -- $(DESTDIR)$(sbindir)/unbound$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-checkconf$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-host$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-anchor$(EXEEXT) $(DESTDIR)$(sbindir)/unbound-control-setup
+	rm -f -- $(DESTDIR)$(mandir)/man8/unbound.8 $(DESTDIR)$(mandir)/man8/unbound-checkconf.8 $(DESTDIR)$(mandir)/man5/unbound.conf.5 $(DESTDIR)$(mandir)/man8/unbound-control.8 $(DESTDIR)$(mandir)/man8/unbound-anchor.8
+	rm -f -- $(DESTDIR)$(mandir)/man1/unbound-host.1 $(DESTDIR)$(mandir)/man3/libunbound.3
+	rm -f -- $(DESTDIR)$(includedir)/unbound.h
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(libdir)/libunbound.la
+ifeq "$(WITH_PYTHONMODULE)" "yes"
+	rm -f -- $(DESTDIR)$(PYTHON_SITE_PKG)/unboundmodule.py
+endif
+ifeq "$(WITH_PYUNBOUND)" "yes"
+	rm -f -- $(DESTDIR)$(PYTHON_SITE_PKG)/unbound.py
+	$(LIBTOOL) --mode=uninstall rm -f $(DESTDIR)$(PYTHON_SITE_PKG)/_unbound.la
+endif
+	@echo
+	@echo "You still need to remove "`dirname $(DESTDIR)$(configfile)`" , $(DESTDIR)$(configfile) by hand"
+
+download_ldns:
+	svn export https://www.nlnetlabs.nl/svn/ldns/trunk/makedist.sh ldns_makedist.sh
+	./ldns_makedist.sh -s -d https://www.nlnetlabs.nl/svn/ldns/trunk
+	mv ldns-[0-9]*.tar.gz ldns-src.tar.gz
+	rm ldns-*.tar.gz.sha1 ldns_makedist.sh
+
+iana_update:
+	curl -o port-numbers.tmp http://www.iana.org/assignments/port-numbers
+	awk '/Unassigned|Reserved/ {next;} { match($$0, "[0-9]+/udp"); if (RLENGTH > 0) print substr($$0, RSTART, RLENGTH - 4) ","}' port-numbers.tmp | sort -nu > portslist.tmp
+	cat portslist.tmp > util/iana_ports.inc
+	rm -f port-numbers.tmp portslist.tmp
+
+# Automatic dependencies.
+$(BUILD)%.d: $(srcdir)/%.c
+	$(INFO) Depend $<
+	@if test ! -z "$(ldnsdir)" -a ! -e $(ldnsdir)/include/ldns/ldns.h; \
+		then (cd $(ldnsdir); $(MAKE) copy-headers); fi
+	@-if test ! -d $(dir $@); then $(INSTALL) -d $(patsubst %/,%,$(dir $@)); fi
+	$Q$(SHELL) -ec '$(CC) $(DEPFLAG) $(CPPFLAGS) $(CFLAGS) $< | sed '\''s!\(.*\)\.o[ :]*!$(dir $@)\1.lo $@ : !g'\'' > $@; [ -s $@ ] || rm -f $@'
+
+ifneq ($(MAKECMDGOALS),clean)
+ifneq ($(MAKECMDGOALS),realclean)
+ifeq ($(debug_enabled),yes)
+-include $(addprefix $(BUILD),$(ALL_SRC:.c=.d) $(COMPAT_SRC:.c=.d))
+endif
+endif
+endif

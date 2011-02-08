@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<RDF xmlns="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:em="http://www.mozilla.org/2004/em-rdf#">
+  <Description about="urn:mozilla:install-manifest">
+    <em:id>extended-validator@os3sec.org</em:id>
+    <em:type>2</em:type>
+    <em:name>Extended DNSSEC Validator</em:name>
+    <em:description>Description</em:description>
+    <em:version>0.42</em:version>
+    <em:creator>Danny Groenewegen; Pieter Lange</em:creator>
+    <em:homepageURL>http://www.os3sec.org</em:homepageURL>
+    <em:iconURL>chrome://extval/skin/icon.png</em:iconURL>
+    <em:optionsURL>chrome://extval/content/options.xul</em:optionsURL>
+    <em:unpack>true</em:unpack>
+    <em:targetApplication>
+      <Description>
+        <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id> <!-- Firefox -->
+        <em:minVersion>4.0b8</em:minVersion>
+        <em:maxVersion>4.0.*</em:maxVersion>
+      </Description>
+    </em:targetApplication>
+  </Description>
+</RDF>

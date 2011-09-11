@@ -37,7 +37,7 @@ org.os3sec.Extval.DomainRecord = function() {
   this.why_bogus = "";
   this.ttl = 60;
   this.exp_ttl = null;
-  this.certHashes = new Array();
+  this.tlsa = new Array();
   
   this.setNxdomain = function(nxdomain) {
     if(this.nxdomain == null) {
@@ -80,7 +80,7 @@ org.os3sec.Extval.DNSResolver = {
     var domainRecord = this._doValidatedDomainLookup(domain, resolvipv4, resolvipv6);
     var tlsa = this._doValidatedCertLookup(domain);
     
-    domainRecord.certHashes = tlsa.certHashes;
+    domainRecord.tlsa = tlsa.tlsa;
     domainRecord.setSecure(tlsa.secure);
     domainRecord.setBogus(tlsa.bogus);
     domainRecord.setWhy_bogus(tlsa.why_bogus);
@@ -122,10 +122,11 @@ org.os3sec.Extval.DNSResolver = {
     var domainRecord = new org.os3sec.Extval.DomainRecord();
     domainRecord.domain = domain;
     
-    var res = this._executeLibunbound(domain, this.RRTYPE_TLSA);
+    var res = this._executeLibunbound("_443._tcp."+domain, this.RRTYPE_TLSA);
 
 	for(var i=0 in res.rdata) {
 		/*
+         * Usage field
 		 * Value        Short description                         Ref.
 		 * -------------------------------------------------------------
 		 * 0            Reserved                                  [This]
@@ -134,9 +135,17 @@ org.os3sec.Extval.DNSResolver = {
          * 3            A public key expressed as a PKIX SubjectPublicKeyInfo structure
          * 4-254        Unassigned
          */
-		var certType = res.rdata[i].substring(0,2);
+		var usage = parseInt(res.rdata[i].substring(0,2));
 		
+        /*
+           Selector field
+           0 -- Full certificate
+           1 -- SubjectPublicKeyInfo
+        */
+        var selector = parseInt(res.rdata[i].substring(2,4));
+
 		/*
+         * Matching type field
 		 * Value        Short description       Ref.
 		 * -----------------------------------------------------
 		 * 0            Full cert            [This]
@@ -144,12 +153,12 @@ org.os3sec.Extval.DNSResolver = {
          * 2            SHA-512              NIST FIPS 180-2
          * 3-254        Unassigned
          */
-		var hashType = res.rdata[i].substring(2,4);
+		var matchingType = parseInt(res.rdata[i].substring(4,6));
 
-		var certAssociation = res.rdata[i].substring(4);
+		var certAssociation = res.rdata[i].substring(6);
 
-		org.os3sec.Extval.Extension.logMsg("Found certificate: " + certType + "hashType: " + hashType + " associated: " + certAssociation);
-		domainRecord.certHashes.push(certAssociation.toUpperCase());
+		org.os3sec.Extval.Extension.logMsg("Found certificate: Usage:" + usage + "Selector: " + selector + "matchingType: " + matchingType + " associated: " + certAssociation);
+		domainRecord.tlsa.push(new Array(usage,selector,matchingType,certAssociation.toUpperCase()));
 	}
     domainRecord.setNxdomain(res.nxdomain != 0);
     domainRecord.setSecure(res.secure != 0);
@@ -160,7 +169,7 @@ org.os3sec.Extval.DNSResolver = {
   },
 
   _executeLibunbound : function(domain, rrtype) {
-    
+    org.os3sec.Extval.Extension.logMsg("execute libunbound for " + domain + " rrtype: " + rrtype); 
     var result = new org.os3sec.Extval.Libunbound.ub_result_ptr();
     
     var retval = org.os3sec.Extval.Libunbound.ub_resolve(org.os3sec.Extval.Libunbound.ctx, domain,
@@ -240,8 +249,9 @@ org.os3sec.Extval.DNSResolver = {
           var hex;
           //skip the first strange character
           for(var j=0; j<lengths[i];j++) {
-			hex = line.contents[j].toString(16);
-			if(hex < 16) { hex = "0" + hex; } // DONT LOOK AT ME
+            hex = org.os3sec.Extval.CertTools.charcodeToHexString(line.contents[j]);
+			//hex = line.contents[j].toString(16);
+			//if(hex < 16) { hex = "0" + hex; } // DONT LOOK AT ME
 
 			tmp += hex;
           }

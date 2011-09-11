@@ -113,12 +113,41 @@ org.os3sec.Extval.CertTools = {
   
   //checks if certificate can be validated using dnssec
   is_trusted_by_dns: function(cert, domainRecord) {
-    var sha1 = cert.sha1Fingerprint.replace(/:/g,'').toUpperCase();
-    if(domainRecord.certHashes.indexOf(sha1) == -1) {
-      return false;
-    } else {
-      return true;
+    //var sha1 = cert.sha1Fingerprint.replace(/:/g,'').toUpperCase();
+    for(i=0;i<domainRecord.tlsa.length;i++) {
+        if ( this.check_cert(cert,domainRecord.tlsa[i]) ) {
+            return true;
+        }
     }
+    return false;
+  },
+
+  check_cert: function(cert, tlsa_record) {
+    var ihash = Components.interfaces.nsICryptoHash;
+    var hasher = Components.classes["@mozilla.org/security/hash;1"].createInstance(ihash);
+    if (tlsa_record[2] == 1) {
+        hasher.init(ihash.SHA256);
+    }
+    else if (tlsa_record[2] == 2) {
+        hasher.init(ihash.SHA512);
+    }
+    else {
+        //0 type (exact content) not supported yet
+        return false
+    }
+
+    var len = {};
+    var der = cert.getRawDER(len);
+    hasher.update(der, len.value);
+    var binHash = hasher.finish(false);
+    // convert the binary hash data to a hex string.
+    var s = [this.charcodeToHexString(binHash.charCodeAt(i)) for (i in binHash)].join("").toUpperCase();
+    org.os3sec.Extval.Extension.logMsg("checking tlsa record: " + s + " / " + tlsa_record[3]);
+    return s == tlsa_record[3];
+  },
+
+  charcodeToHexString: function(charcode) {
+    return ("0" + charcode.toString(16)).slice(-2);
   },
   
   //gets valid or invalid certificate used by the browser

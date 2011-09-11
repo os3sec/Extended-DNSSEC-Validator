@@ -119,8 +119,8 @@ org.os3sec.Extval.Resolver = {
     //check if we're on a secure connection
     if(!uri.schemeIs("https")) {
         //check if https is available anyway
-        //we have hashes, https should be available
-        if(domainRecord.certHashes.length > 0) {
+        //we have tlsa records, https should be available
+        if(domainRecord.tlsa.length > 0) {
           org.os3sec.Extval.UIHandler.enableSwitchHttps(uri,true)
         }
     }

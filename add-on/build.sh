@@ -82,7 +82,8 @@ for DIR in $ROOT_DIRS; do
   mkdir $TMP_DIR/$DIR
   FILES="`find $DIR \( -path '*CVS*' -o -path '*.svn*' \) -prune -o -type f -print | grep -v \~`"
   echo $FILES >> files
-  cp -v --parents $FILES $TMP_DIR
+  #cp -v -a $FILES $TMP_DIR
+  cp -R $DIR $TMP_DIR
 done
 
 # Copy other files to the root of future XPI.

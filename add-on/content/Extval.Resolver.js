@@ -49,7 +49,8 @@ org.os3sec.Extval.Resolver = {
     // Get browser's IP address(es) that uses to connect to the remote site.
     // Uses browser's internal resolver cache
     aRecord = dnsService.resolve(uri.asciiHost, 0);// Components.interfaces.nsIDNSService.RESOLVE_BYPASS_CACHE
-	this.onBrowserLookupComplete(uri, aRecord);
+	org.os3sec.Extval.Extension.logMsg('Browser dns lookup complete');
+    this.onBrowserLookupComplete(uri, aRecord);
   },
   
   // Get validated data from cache or DNSResolver call
@@ -117,28 +118,15 @@ org.os3sec.Extval.Resolver = {
     
     //check if we're on a secure connection
     if(!uri.schemeIs("https")) {
-      //if sts flag is set in dns, check sts record
-      if(domainRecord.sts) {
-        //STS record in firefox can't be set at this point.
-        //Adding the STS record disables the ability to allow selfsigned (but dnssec validated) certificates
-        //this.checkSts(domainRecord.domain);
-        
-        //redirect to https
-        org.os3sec.Extval.Extension.logMsg('Redirecting to https...');
-        //setTimeout(function(){ window.gBrowser.loadURI(uri.spec.replace('http','https'));},25);
-	window.gBrowser.loadURI(uri.spec.replace('http','https'));
-        return;
-      }
-      else {  //sts not set, but check if https is available anyway
+        //check if https is available anyway
         //we have hashes, https should be available
         if(domainRecord.certHashes.length > 0) {
           org.os3sec.Extval.UIHandler.enableSwitchHttps(uri,true)
         }
-      }
     }
     else { //connection is https
       org.os3sec.Extval.CertTools.checkCertificate(uri, domainRecord);
-   }
+    }
   },
   
   // Check browser's IP address(es)
@@ -159,41 +147,6 @@ org.os3sec.Extval.Resolver = {
       }
     }
     return valid;
-  },
-  
-  //Check if the domain is already listed as STS
-  //If not add it
-  checkSts: function(domain) {
-    var svc = Components.classes["@mozilla.org/stsservice;1"].getService(Ci.nsIStrictTransportSecurityService);
-    var permmgr = Components.classes["@mozilla.org/permissionmanager;1"].getService(Ci.nsIPermissionManager);
-    
-    var uri = null;
-    try {
-      // canonicalize host name (turn into canonical charset).
-      var ioService = Components.classes["@mozilla.org/network/io-service;1"].getService(Ci.nsIIOService);
-      // we're not going to use the scheme anyway, so scheme can be whatever.
-      uri = ioService.newURI("http://"+domain, null, null);
-      domain = uri.asciiHost;
-    } catch(ex) {
-      
-    }
-    
-    // check whether the permission already exists, if not, add it
-    if (!svc.isStsHost(domain)) {
-      org.os3sec.Extval.Extension.logMsg('Adding STS record for domain ' + domain);
-      
-      // insert new record
-      permmgr.add(uri, "sts/use",
-                  Components.interfaces.nsIPermissionManager.ALLOW_ACTION,
-                  Components.interfaces.nsIPermissionManager.EXPIRE_NEVER,
-                  null);
-
-      permmgr.add(uri, "sts/subd",
-                    Components.interfaces.nsIPermissionManager.ALLOW_ACTION,
-                    Components.interfaces.nsIPermissionManager.EXPIRE_NEVER,
-                    null);
-      
-    }
   },
   
   //Update the ui with appropriate dnssec state

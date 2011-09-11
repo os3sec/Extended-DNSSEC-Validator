@@ -37,8 +37,6 @@ org.os3sec.Extval.DomainRecord = function() {
   this.why_bogus = "";
   this.ttl = 60;
   this.exp_ttl = null;
-  this.sts = false;
-  this.sn = false;
   this.certHashes = new Array();
   
   this.setNxdomain = function(nxdomain) {
@@ -75,20 +73,17 @@ org.os3sec.Extval.DNSResolver = {
   //RR types
   RRTYPE_A: 1,
   RRTYPE_AAAA: 28,
-  RRTYPE_TXT: 16,
-  RRTYPE_TLSA: 65534, // Number not assigned yet, using this for now
+  RRTYPE_TLSA: 65468, // Number not assigned yet, using this for now
   
   //Returns a domain record containing addresses, and txt records
   getDomainRecord: function(domain, resolvipv4, resolvipv6) {
     var domainRecord = this._doValidatedDomainLookup(domain, resolvipv4, resolvipv6);
-    var txt = this._doValidatedCertLookup(domain);
+    var tlsa = this._doValidatedCertLookup(domain);
     
-    domainRecord.sts = txt.sts;
-    domainRecord.sn = txt.sn;
-    domainRecord.certHashes = txt.certHashes;
-    domainRecord.setSecure(txt.secure);
-    domainRecord.setBogus(txt.bogus);
-    domainRecord.setWhy_bogus(txt.why_bogus);
+    domainRecord.certHashes = tlsa.certHashes;
+    domainRecord.setSecure(tlsa.secure);
+    domainRecord.setBogus(tlsa.bogus);
+    domainRecord.setWhy_bogus(tlsa.why_bogus);
     
     return domainRecord;
   },
@@ -122,16 +117,6 @@ org.os3sec.Extval.DNSResolver = {
   },
   
   _doValidatedCertLookup: function(domain) {
-    var tlsaRecord = this._doValidatedCertLookupTlsa(domain);
-
-	if(tlsaRecord.certHashes.length>0) {
-		return tlsaRecord;
-	}
-	var txtRecord = this._doValidatedCertLookUpTxt(domain);
-	return txtRecord;
-  },
-
-  _doValidatedCertLookupTlsa: function(domain) {
     org.os3sec.Extval.Extension.logMsg("Starting validated cert lookup (TLSA) using libunbound");
     
     var domainRecord = new org.os3sec.Extval.DomainRecord();
@@ -144,23 +129,21 @@ org.os3sec.Extval.DNSResolver = {
 		 * Value        Short description                         Ref.
 		 * -------------------------------------------------------------
 		 * 0            Reserved                                  [This]
-		 * 1            Hash of an end-entity cert                [This]
-		 * 2            Full end-entity cert in DER encoding      [This]
-		 * 3            Hash of an CA's cert                      [This]
-		 * 4            Full CA's cert in DER encoding            [This]
-		 * 5-254        Unassigned
-		 */
+		 * 1            A PKIX certificate that identifies an end entity
+         * 2            A PKIX certification authority's certificate
+         * 3            A public key expressed as a PKIX SubjectPublicKeyInfo structure
+         * 4-254        Unassigned
+         */
 		var certType = res.rdata[i].substring(0,2);
 		
 		/*
 		 * Value        Short description       Ref.
 		 * -----------------------------------------------------
-		 * 0            No hash used            [This]
-		 * 1            SHA-1                   NIST FIPS 180-2
-		 * 2            SHA-256                 NIST FIPS 180-2
-		 * 3            SHA-384                 NIST FIPS 180-2
-		 * 4-254        Unassigned
-		 */
+		 * 0            Full cert            [This]
+         * 1            SHA-256              NIST FIPS 180-2
+         * 2            SHA-512              NIST FIPS 180-2
+         * 3-254        Unassigned
+         */
 		var hashType = res.rdata[i].substring(2,4);
 
 		var certAssociation = res.rdata[i].substring(4);
@@ -176,45 +159,6 @@ org.os3sec.Extval.DNSResolver = {
     return domainRecord;
   },
 
-  _doValidatedCertLookUpTxt: function(domain) {
-    org.os3sec.Extval.Extension.logMsg("Starting validated cert lookup (TXT) using libunbound");
-    
-    var domainRecord = new org.os3sec.Extval.DomainRecord();
-    domainRecord.domain = domain;
-    
-    var res = this._executeLibunbound(domain, this.RRTYPE_TXT);
-    
-    for(var i=0 in res.rdata) {
-      if(res.rdata[i].match("v=key1")) {
-        var parts = res.rdata[i].split(/\s/);
-        //parse all keyvalue pairs in txt record
-        var kv;
-        var ha;
-        var h;
-        for(var j in parts) {
-          kv = parts[j].split("=");
-          if(kv[0] == "ha") { //hash algorithm
-            ha = kv[1];
-          } else if(kv[0] == "h") { //hash
-            h = kv[1];
-            domainRecord.certHashes.push(h.toUpperCase());
-          } else if(kv[0] == "sts") { //Strict-Transport-Security
-            domainRecord.sts = (kv[1] == "1");
-          } else if(kv[0] == "sn") { //Secure Negotiation
-            domainRecord.sn = (kv[1] == "1");
-          }
-        }
-      }
-    }
-    
-    domainRecord.setNxdomain(res.nxdomain != 0);
-    domainRecord.setSecure(res.secure != 0);
-    domainRecord.setBogus(res.bogus != 0);
-    domainRecord.setWhy_bogus(res.why_bogus);
-    
-    return domainRecord;
-  },
-  
   _executeLibunbound : function(domain, rrtype) {
     
     var result = new org.os3sec.Extval.Libunbound.ub_result_ptr();
@@ -284,23 +228,6 @@ org.os3sec.Extval.DNSResolver = {
         }
         break;
       
-      case this.RRTYPE_TXT:
-        var rdata = ctypes.cast(data, ctypes.char.ptr.array(totalLines).ptr);
-        //iterate all lines
-        for(var i=0; i<totalLines;i++) {
-          //convert line to array of characters
-          //parsing the complete string fails due to ending null character
-          var tmp = new String();
-          var line = ctypes.cast(rdata.contents[i], ctypes.char.array(lengths[i]).ptr);
-          
-          //skip the first strange character
-          var j = (line.contents[0].toString() == 16 || line.contents[0].toString() == 63)? 1 : 0;
-          for(; j<lengths[i];j++) {
-            tmp += String.fromCharCode(line.contents[j].toString());
-          }
-          results.push(tmp);
-        }
-        break;
       case this.RRTYPE_TLSA:
         var rdata = ctypes.cast(data, ctypes.char.ptr.array(totalLines).ptr);
         //iterate all lines

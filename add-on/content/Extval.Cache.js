@@ -105,7 +105,7 @@ org.os3sec.Extval.Cache = {
 
       org.os3sec.Extval.Extension.logMsg('r' + i + ': \"' + n + '\": '
            + c[n].exp_ttl + ' (' + c[n].ttl + '); nxdomain:' + c[n].nxdomain + '; secure:' + c[n].secure +
-            '; bogus:' + c[n].bogus + '; why_bogus:' + c[n].why_bogus +  '; sts:' + c[n].sts + '; sn:' + c[n].sn + '\n');
+            '; bogus:' + c[n].bogus + '; why_bogus:' + c[n].why_bogus + '\n');
       i++;
     }
   },

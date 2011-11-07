@@ -5,8 +5,10 @@
     <em:type>2</em:type>
     <em:name>Extended DNSSEC Validator</em:name>
     <em:description>Description</em:description>
-    <em:version>0.5</em:version>
-    <em:creator>Danny Groenewegen; Pieter Lange</em:creator>
+    <em:version>0.6</em:version>
+    <em:creator>OS3SEC.ORG</em:creator>
+    <em:developer>Danny Groenewegen</em:developer>
+    <em:contributor>Pieter Lange</em:contributor>
     <em:homepageURL>http://www.os3sec.org</em:homepageURL>
     <em:iconURL>chrome://extval/skin/icon.png</em:iconURL>
     <em:optionsURL>chrome://extval/content/options.xul</em:optionsURL>
@@ -15,7 +17,7 @@
       <Description>
         <em:id>{ec8030f7-c20a-464f-9b0e-13a3a9e97384}</em:id> <!-- Firefox -->
         <em:minVersion>5.0</em:minVersion>
-        <em:maxVersion>7.*</em:maxVersion>
+        <em:maxVersion>8.*</em:maxVersion>
       </Description>
     </em:targetApplication>
   </Description>

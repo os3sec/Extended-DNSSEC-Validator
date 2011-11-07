@@ -123,7 +123,9 @@ org.os3sec.Extval.Extension = {
       scheme = aLocationURI.scheme;             // Get URI scheme
       asciiHost = aLocationURI.asciiHost;       // Get punycoded hostname
       utf8Host = aLocationURI.host;             // Get UTF-8 encoded hostname
-    } catch(ex) {}
+    } catch(ex) {
+        this.logMsg('Exception: ' + ex);
+    }
 
     this.logMsg('Scheme: "' + scheme + '"; ' + 'ASCII domain name: "' + asciiHost + '"');
 
@@ -153,13 +155,11 @@ org.os3sec.Extval.UrlBarListener = {
   
   //window location changed, also happens on changing tabs
   onLocationChange: function(aWebProgress, aRequest, aLocationURI) {
-    //domainRecord is already cached by now,
-    //only ui needs to be updated from here
     org.os3sec.Extval.Extension.processNewURL(aLocationURI);
   },
 
   onSecurityChange: function(aWebProgress, aRequest, aState) {
-      org.os3sec.Extval.Extension.processNewURL(window.gBrowser.currentURI);
+      //org.os3sec.Extval.Extension.processNewURL(window.gBrowser.currentURI);
   },
   
   onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {

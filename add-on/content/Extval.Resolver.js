@@ -31,6 +31,8 @@
 /* Get security status through Libunbound call or from cache */
 org.os3sec.Extval.Resolver = {
   
+  uri: null,
+  
   // Determine the security of the domain and connection and, if necessary,
   // update the UI to reflect this. Intended to be called by onLocationChange.
   checkSecurity : function(uri) {
@@ -48,9 +50,36 @@ org.os3sec.Extval.Resolver = {
 
     // Get browser's IP address(es) that uses to connect to the remote site.
     // Uses browser's internal resolver cache
-    var aRecord = dnsService.resolve(uri.asciiHost, 0);// Components.interfaces.nsIDNSService.RESOLVE_BYPASS_CACHE
-	org.os3sec.Extval.Extension.logMsg('Browser dns lookup complete');
-    this.onBrowserLookupComplete(uri, aRecord);
+    //var aRecord = dnsService.resolve(uri.asciiHost, 0);// Components.interfaces.nsIDNSService.RESOLVE_BYPASS_CACHE
+	//org.os3sec.Extval.Extension.logMsg('Browser dns lookup complete');
+    //this.onBrowserLookupComplete(uri, aRecord);
+    
+    this.uri = uri;
+
+    var dnsListener = {
+        // Called when async host lookup completes
+        onLookupComplete: function(aRequest, aRecord, aStatus) {
+            org.os3sec.Extval.Extension.logMsg('Browser dns lookup complete');
+            // Check hostname security state
+            org.os3sec.Extval.Resolver.onBrowserLookupComplete(org.os3sec.Extval.Resolver.uri, aRecord); 
+        }
+    };
+    
+    // Thread on which onLookupComplete should be called after lookup
+    var th = Components.classes["@mozilla.org/thread-manager;1"]
+        .getService(Components.interfaces.nsIThreadManager).mainThread;
+    
+    // Get browser's IP address(es) that uses to connect to the remote site.
+    // Uses browser's internal resolver cache
+    try {
+        dnsService.asyncResolve(uri.asciiHost, 0, dnsListener, th); // Ci.nsIDNSService.RESOLVE_BYPASS_CACHE
+    } catch(ex) {
+        org.os3sec.Extval.Extension.logMsg('Error: Browser\'s async DNS lookup failed!');
+        
+        // Set error mode
+        //dnssecExtHandler.setMode(dnssecExtHandler.DNSSEC_MODE_ERROR);
+        return;
+    }
   },
   
   // Get validated data from cache or DNSResolver call

@@ -125,11 +125,14 @@ org.os3sec.Extval.CertTools = {
   check_cert: function(cert, tlsa_record) {
     var ihash = Components.interfaces.nsICryptoHash;
     var hasher = Components.classes["@mozilla.org/security/hash;1"].createInstance(ihash);
+    var hashlen = 0;
     if (tlsa_record[2] == 1) {
         hasher.init(ihash.SHA256);
+        hashlen = 64;
     }
     else if (tlsa_record[2] == 2) {
         hasher.init(ihash.SHA512);
+        hashlen = 128;
     }
     else {
         //0 type (exact content) not supported yet
@@ -141,7 +144,7 @@ org.os3sec.Extval.CertTools = {
     hasher.update(der, len.value);
     var binHash = hasher.finish(false);
     // convert the binary hash data to a hex string.
-    var s = [this.charcodeToHexString(binHash.charCodeAt(i)) for (i in binHash)].join("").toUpperCase();
+    var s = [this.charcodeToHexString(binHash.charCodeAt(i)) for (i in binHash)].join("").toUpperCase().substring(0,hashlen);
     org.os3sec.Extval.Extension.logMsg("checking tlsa record: " + s + " / " + tlsa_record[3]);
     return s == tlsa_record[3];
   },

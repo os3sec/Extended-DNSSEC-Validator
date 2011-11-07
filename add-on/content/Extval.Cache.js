@@ -92,14 +92,13 @@ org.os3sec.Extval.Cache = {
 
   printContent: function() {
     var i = 0;
-    var n;
     const c = this.data;
     const cur_t = new Date().getTime();
     var ttl;
 
     org.os3sec.Extval.Extension.logMsg('Cache content:');
 
-    for (n in c) {
+    for (var n in c) {
       // compute TTL in seconds
       ttl = Math.round((c[n].exp_ttl - cur_t) / 1000);
 
@@ -118,7 +117,7 @@ org.os3sec.Extval.Cache = {
 
     org.os3sec.Extval.Extension.logMsg('Flushing expired cache records...');
 
-    for (n in c) {
+    for (var n in c) {
       if (cur_t > c[n].exp_ttl ) {
         org.os3sec.Extval.Extension.logMsg('Deleting cache r: \"' + n + '\"');
         delete c[n];

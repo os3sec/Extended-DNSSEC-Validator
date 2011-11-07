@@ -48,7 +48,7 @@ org.os3sec.Extval.Resolver = {
 
     // Get browser's IP address(es) that uses to connect to the remote site.
     // Uses browser's internal resolver cache
-    aRecord = dnsService.resolve(uri.asciiHost, 0);// Components.interfaces.nsIDNSService.RESOLVE_BYPASS_CACHE
+    var aRecord = dnsService.resolve(uri.asciiHost, 0);// Components.interfaces.nsIDNSService.RESOLVE_BYPASS_CACHE
 	org.os3sec.Extval.Extension.logMsg('Browser dns lookup complete');
     this.onBrowserLookupComplete(uri, aRecord);
   },

@@ -159,7 +159,7 @@ org.os3sec.Extval.UrlBarListener = {
   },
 
   onSecurityChange: function(aWebProgress, aRequest, aState) {
-      //org.os3sec.Extval.Extension.processNewURL(window.gBrowser.currentURI);
+      org.os3sec.Extval.Extension.processNewURL(window.gBrowser.currentURI);
   },
   
   onStateChange: function(aWebProgress, aRequest, aStateFlags, aStatus) {

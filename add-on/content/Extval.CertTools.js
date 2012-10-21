@@ -72,7 +72,7 @@ org.os3sec.Extval.CertTools = {
 
     // see if the browser has this cert installed prior to this browser session
     // seems like we can't tell the difference between an exception added by the user
-    // manually and one we installed permemently during a previous browser run.
+    // manually and one we installed permanently during a previous browser run.
     var secureConnection = !(state & this.state.STATE_IS_INSECURE);
     var browser_trusted = secureConnection && !(is_override_cert);
     
@@ -111,9 +111,9 @@ org.os3sec.Extval.CertTools = {
     }
   },
   
-  //checks if certificate can be validated using dnssec
+  //checks if certificate can be validated using dnssec-tlsa
+  //There can be multiple tlsa-records, one valid record suffices.
   is_trusted_by_dns: function(cert, domainRecord) {
-    //var sha1 = cert.sha1Fingerprint.replace(/:/g,'').toUpperCase();
     for(i=0;i<domainRecord.tlsa.length;i++) {
         if ( this.check_cert(cert,domainRecord.tlsa[i]) ) {
             return true;
@@ -136,6 +136,7 @@ org.os3sec.Extval.CertTools = {
     }
     else {
         //0 type (exact content) not supported yet
+	dump("TLSA record specifies full certificate info to match. Not supported. Rejecting validation!");
         return false
     }
 

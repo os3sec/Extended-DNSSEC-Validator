@@ -157,7 +157,7 @@ org.os3sec.Extval.DNSResolver = {
 
 		var certAssociation = res.rdata[i].substring(6);
 
-		org.os3sec.Extval.Extension.logMsg("Found certificate: Usage:" + usage + "Selector: " + selector + "matchingType: " + matchingType + " associated: " + certAssociation);
+		org.os3sec.Extval.Extension.logMsg("Found certificate: Usage: " + usage + ", Selector: " + selector + ", matchingType: " + matchingType + ", associated: " + certAssociation);
 		domainRecord.tlsa.push(new Array(usage,selector,matchingType,certAssociation.toUpperCase()));
 	}
     domainRecord.setNxdomain(res.nxdomain != 0);
@@ -169,7 +169,7 @@ org.os3sec.Extval.DNSResolver = {
   },
 
   _executeLibunbound : function(domain, rrtype) {
-    org.os3sec.Extval.Extension.logMsg("execute libunbound for " + domain + " rrtype: " + rrtype); 
+    org.os3sec.Extval.Extension.logMsg("execute libunbound for " + domain + ", rrtype: " + rrtype); 
     var result = new org.os3sec.Extval.Libunbound.ub_result_ptr();
     
     var retval = org.os3sec.Extval.Libunbound.ub_resolve(org.os3sec.Extval.Libunbound.ctx, domain,
@@ -265,7 +265,7 @@ org.os3sec.Extval.DNSResolver = {
     return results;
   },
   
-  //Converts a packed inet address to a human readable IP address string
+  //Converts a packed inet6 address to a human readable IP address string
   //Source: http://phpjs.org/functions/inet_ntop:882
   //original by: Theriault
   inet6_ntop : function(a) {

@@ -67,15 +67,16 @@ org.os3sec.Extval.Extension = {
     org.os3sec.Extval.UIHandler.setState(null,org.os3sec.Extval.UIHandler.STATE_ERROR);
 
     // Add a progress listener to the urlbar
-    //gBrowser.addProgressListener(extvalUrlBarListener, Components.interfaces.nsIWebProgress.NOTIFY_LOCATION);
-    var flags = 0;
-    flags |= Components.interfaces.nsIWebProgress.NOTIFY_ALL;
-    flags |= Components.interfaces.nsIWebProgress.NOTIFY_STATE_ALL;
-    gBrowser.addProgressListener(org.os3sec.Extval.UrlBarListener, flags);
+    // remove flag: see http://stackoverflow.com/questions/6500786/firefox-addon-quick-question
+    gBrowser.addProgressListener(org.os3sec.Extval.UrlBarListener);
   },
   
   /*
    * If debugout is enabled, log the message to console
+   * set extensions.extval.debugoutput to true in about:config
+   * and set this in .mozilla/firefox/<profile>/user.js
+   * user_pref("browser.dom.window.dump.enabled", true);
+   * According to: https://developer.mozilla.org/en-US/docs/DOM/window.dump?redirectlocale=en-US&redirectslug=window.dump
    */
   logMsg: function(msg) {
   	if(this.debugOutput) {
@@ -85,6 +86,7 @@ org.os3sec.Extval.Extension = {
 
   getDebugOutputFlag: function() {
     this.debugOutput = this.prefs.getBoolPref("debugoutput");
+      this.logMsg("Setting debugoutput to " + this.debugOutput);
   },
 
   uninit: function() {

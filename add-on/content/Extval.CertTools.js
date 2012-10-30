@@ -114,8 +114,8 @@ org.os3sec.Extval.CertTools = {
   //checks if certificate can be validated using dnssec-tlsa
   //There can be multiple tlsa-records, one valid record suffices.
   is_trusted_by_dns: function(cert, domainRecord) {
-    for(i=0;i<domainRecord.tlsa.length;i++) {
-        if ( this.check_cert(cert,domainRecord.tlsa[i]) ) {
+    for(i=0; i < domainRecord.tlsa.length; i++) {
+        if ( this.check_cert(cert, domainRecord.tlsa[i]) ) {
             return true;
         }
     }
@@ -126,33 +126,36 @@ org.os3sec.Extval.CertTools = {
     var ihash = Components.interfaces.nsICryptoHash;
     var hasher = Components.classes["@mozilla.org/security/hash;1"].createInstance(ihash);
     var hashlen = 0;
-    if (tlsa_record[2] == 1) {
+    if (tlsa_record.matchingType == 1) {
         hasher.init(ihash.SHA256);
         hashlen = 64;
     }
-    else if (tlsa_record[2] == 2) {
+    else if (tlsa_record.matchingType == 2) {
         hasher.init(ihash.SHA512);
         hashlen = 128;
     }
     else {
-        //0 type (exact content) not supported yet
+        // matchingType == 0 (exact content) is not supported yet
 	dump("TLSA record specifies full certificate info to match. Not supported. Rejecting validation!");
         return false
     }
 
-    var len = {};
-    var der = cert.getRawDER(len);
-    hasher.update(der, len.value);
+
+    var der = cert.getRawDER();
+    hasher.update(der, der.length);
     var binHash = hasher.finish(false);
+    
     // convert the binary hash data to a hex string.
-    var s = [this.charcodeToHexString(binHash.charCodeAt(i)) for (i in binHash)].join("").toUpperCase().substring(0,hashlen);
-    org.os3sec.Extval.Extension.logMsg("checking tlsa record: " + s + " / " + tlsa_record[3]);
-    return s == tlsa_record[3];
+    var hash = [this.charcodeToHexString(binHash.charCodeAt(i)) for (i in binHash)].join("").toUpperCase();
+
+    org.os3sec.Extval.Extension.logMsg("checking tlsa record: " + hash + " / " + tlsa_record.certAssociation);
+    return hash == tlsa_record.certAssociation;
   },
 
-  charcodeToHexString: function(charcode) {
-    return ("0" + charcode.toString(16)).slice(-2);
-  },
+    // return the two-digit hexadecimal code for a byte
+    charcodeToHexString: function(charcode) {
+	return ("0" + charcode.toString(16)).slice(-2);
+    },
   
   //gets valid or invalid certificate used by the browser
   getCertificate: function(browser) {

@@ -140,8 +140,8 @@ org.os3sec.Extval.CertTools = {
         return false
     }
 
-
-    var der = cert.getRawDER();
+    var len = {};
+    var der = cert.getRawDER(len);
     hasher.update(der, der.length);
     var binHash = hasher.finish(false);
     

@@ -72,6 +72,7 @@ org.os3sec.Extval.DomainRecord = function() {
     }
 }
 
+
 /* Do a validated DNS lookup using Libunbound */
 org.os3sec.Extval.DNSResolver = {
     RRTYPE_A:     1,
@@ -119,7 +120,7 @@ org.os3sec.Extval.DNSResolver = {
 	return result;
     },
   
-    _doParseTLSARecord: function(tlsRecord) {
+    parseTLSARecord: function(tlsaStr) {
 	/*
          * Usage field
 	 * Value        Short description                       
@@ -133,14 +134,14 @@ org.os3sec.Extval.DNSResolver = {
 	 * Reference:   https://tools.ietf.org/id/draft-ietf-dane-protocol-23
 	 * and:         https://tools.ietf.org/html/rfc6394
          */
-	var usage = parseInt(res.rdata[i].substring(0,2));
+	var usage = parseInt(tlsaStr.substring(0,2));
 		
         /*
          * Selector field
          * 0 -- Full certificate
          * 1 -- SubjectPublicKeyInfo
          */
-	var selector = parseInt(res.rdata[i].substring(2,4));
+	var selector = parseInt(tlsaStr.substring(2,4));
 
 	/*
          * Matching type field
@@ -151,16 +152,16 @@ org.os3sec.Extval.DNSResolver = {
          * 2            SHA-512              NIST FIPS 180-2
          * 3-254        Unassigned
          */
-	var matchingType = parseInt(res.rdata[i].substring(4,6));
+	var matchingType = parseInt(tlsaStr.substring(4,6));
 
 	// This contains the certificate hash
-	var certAssociation = res.rdata[i].substring(6);
+	var certAssociation = tlsaStr.substring(6);
 
 	return {usage:           usage,
 		selector:        selector,
 		matchingType:    matchingType,
-		certAssociation: certAssociation.toUpperCase()});
-    }
+		certAssociation: certAssociation.toUpperCase()};
+    },
 
     _doValidatedTLSALookup: function(domain) {
 	org.os3sec.Extval.Extension.logMsg("Starting validated cert lookup (TLSA) using libunbound");
@@ -170,14 +171,14 @@ org.os3sec.Extval.DNSResolver = {
     
 	var res = this._executeLibunbound("_443._tcp."+domain, this.RRTYPE_TLSA);
 
-	for(var i=0 in res.rdata.length) {
-	    var tlsa = _parseTLSARecord(res.rdata[i]);
+	for(var i=0 in res.rdata) {
+	    var tlsa = this.parseTLSARecord(res.rdata[i]);
 	    domainRecord.tlsa.push(tlsa);
 
-	    org.os3sec.Extval.Extension.logMsg("Found TLSA-Record: Usage: " + usage + 
-					       ", Selector: " + selector + 
-					       ", matchingType: " + matchingType + 
-					       ", associated: " + certAssociation);
+	    org.os3sec.Extval.Extension.logMsg("Found TLSA-Record: usage: " + tlsa.usage + 
+					       ", selector: " + tlsa.selector + 
+					       ", matchingType: " + tlsa.matchingType + 
+					       ", associated: " + tlsa.certAssociation);
 	}
 	domainRecord.setNxdomain( res.nxdomain  != 0);
 	domainRecord.setSecure(   res.secure    != 0);
@@ -196,7 +197,7 @@ org.os3sec.Extval.DNSResolver = {
       1, // CLASS IN (internet)
       result.address());
     
-    var rdata = this.parseRdata(result.contents.len, result.contents.data,rrtype);
+    var rdata = this.parseRdata(result.contents.len, result.contents.data, rrtype);
     
     return {rdata: rdata,
 	    nxdomain:  result.contents.nxdomain.toString(),
@@ -262,7 +263,7 @@ org.os3sec.Extval.DNSResolver = {
         for(var i=0; i<totalLines;i++) {
           //convert line to array of characters
           //parsing the complete string fails due to ending null character
-		  org.os3sec.Extval.Extension.logMsg("Length:"+lengths[i]);
+	  org.os3sec.Extval.Extension.logMsg("Length: "+lengths[i]);
           var tmp = new String();
           var line = ctypes.cast(rdata.contents[i], ctypes.uint8_t.array(lengths[i]).ptr);
           var hex;

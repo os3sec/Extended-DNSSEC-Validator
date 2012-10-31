@@ -78,6 +78,7 @@ org.os3sec.Extval.CertTools = {
     
     org.os3sec.Extval.Extension.logMsg('browser_trusted = ' + browser_trusted);
     
+    // check the certificate and its chain according to the tlsa-records
     var dns_trusted = this.is_trusted_by_dns(cert, domainRecord);
     
     org.os3sec.Extval.Extension.logMsg('dns_trusted = ' + dns_trusted);
@@ -115,14 +116,43 @@ org.os3sec.Extval.CertTools = {
   //There can be multiple tlsa-records, one valid record suffices.
   is_trusted_by_dns: function(cert, domainRecord) {
     for(i=0; i < domainRecord.tlsa.length; i++) {
-        if ( this.check_cert(cert, domainRecord.tlsa[i]) ) {
+        if ( this.check_tlsa(cert, domainRecord.tlsa[i]) ) {
             return true;
         }
     }
     return false;
   },
 
+  // Check against tlsa-specification
+    check_tlsa: function(cert, tlsa) {
+	// With usage is 0 or 2, we walk up the chain of certificates until we have a match;
+	// With usage is 1 or 3, we just validate the certifite.
+	
+	// With usage is 0 or 1, we need to validate against the Trusted CAs in the browser/OS;
+	// With usage is 2 or 3, we don't validage against Trusted CA's.
+
+	org.os3sec.Extval.Extension.logMsg("check_tlsa, usage: " + tlsa.usage);
+
+	if (tlsa.usage == 2) {
+	    var chain = cert.getChain();
+	    for (i=0; i< chain.length; i++) {
+		if (this.check_cert(chain[i], tlsa)) return true; // keep going up the chain
+	    }
+	    return false;
+	}
+	else if (tlsa.usage == 3) {
+	    return this.check_cert(cert, tlsa);
+	}
+	// Reject if usage is out of range.
+	org.os3sec.Extval.Extension.logMsg("check_tlsa got unexpected value for usage: " + tlsa.usage + 
+					   " Rejecting validation!");
+	return false;
+    },
+
+
   check_cert: function(cert, tlsa_record) {
+    org.os3sec.Extval.Extension.logMsg("check_cert for: " + cert.commonName);
+    
     var ihash = Components.interfaces.nsICryptoHash;
     var hasher = Components.classes["@mozilla.org/security/hash;1"].createInstance(ihash);
     var hashlen = 0;

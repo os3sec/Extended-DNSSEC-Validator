@@ -4,11 +4,13 @@
     <em:id>extended-validator@os3sec.org</em:id>
     <em:type>2</em:type>
     <em:name>Extended DNSSEC Validator</em:name>
-    <em:description>Description</em:description>
-    <em:version>0.6</em:version>
+    <em:description>Validate DNSSEC DANE/TLSA records for added security</em:description>
+    <em:version>0.8</em:version>
     <em:creator>OS3SEC.ORG</em:creator>
     <em:developer>Danny Groenewegen</em:developer>
     <em:contributor>Pieter Lange</em:contributor>
+    <em:contributor>Paul Wouters</em:contributor>
+    <em:contributor>Guido Witmond</em:contributor>
     <em:homepageURL>http://www.os3sec.org</em:homepageURL>
     <em:iconURL>chrome://extval/skin/icon.png</em:iconURL>
     <em:optionsURL>chrome://extval/content/options.xul</em:optionsURL>

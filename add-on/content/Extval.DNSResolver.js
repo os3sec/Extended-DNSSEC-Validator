@@ -29,147 +29,167 @@
  * ***** END LICENSE BLOCK ***** */
 
 org.os3sec.Extval.DomainRecord = function() {
-  this.domain = null;
-  this.addresses = new Array();
-  this.nxdomain = null;
-  this.secure = null;
-  this.bogus = null;
-  this.why_bogus = "";
-  this.ttl = 60;
-  this.exp_ttl = null;
-  this.tlsa = new Array();
+    this.domain    = null;
+    this.addresses = new Array();
+    this.nxdomain  = null;
+    this.secure    = null;
+    this.bogus     = null;
+    this.why_bogus = "";
+    this.ttl       = 60;
+    this.exp_ttl   = null;
+    this.tlsa      = new Array();
   
-  this.setNxdomain = function(nxdomain) {
-    if(this.nxdomain == null) {
-      this.nxdomain = nxdomain;
-    } else {
-      this.nxdomain = (this.nxdomain && nxdomain);
+    // we set Nxdomain when all lookups return nxdomain=true. Not good?
+    this.setNxdomain = function(nxdomain) {
+	if (this.nxdomain == null) {
+	    this.nxdomain = nxdomain;
+	} else {
+	    this.nxdomain = (this.nxdomain && nxdomain);
+	}
+    };
+
+    // Every record lookup must be secure to set the secure-flag. Good.
+    this.setSecure = function(secure) {
+	if (this.secure == null) {
+	    this.secure = secure;
+	} else {
+	    this.secure = (this.secure && secure);
+	}
+    };
+  
+    // Any bogus lookup means the whole is bogus. Good.
+    this.setBogus = function(bogus) {
+	if(this.bogus == null) {
+	    this.bogus = bogus;
+	} else {
+	    this.bogus = (this.bogus || bogus);
+	}
+    };
+  
+    // Capture all bogus-reasons
+    this.setWhy_bogus = function(why_bogus) {
+	this.why_bogus += why_bogus + " ";
     }
-  };
-  
-  this.setSecure = function(secure) {
-    if(this.secure == null) {
-      this.secure = secure;
-    } else {
-      this.secure = (this.secure && secure);
-    }
-  };
-  
-  this.setBogus = function(bogus) {
-    if(this.bogus == null) {
-      this.bogus = bogus;
-    } else {
-      this.bogus = (this.bogus || bogus);
-    }
-  };
-  
-  this.setWhy_bogus = function(why_bogus) {
-    this.why_bogus += why_bogus + " ";
-  }
 }
+
 
 /* Do a validated DNS lookup using Libunbound */
 org.os3sec.Extval.DNSResolver = {
-  //RR types
-  RRTYPE_A: 1,
-  RRTYPE_AAAA: 28,
-  RRTYPE_TLSA: 65468, // Number not assigned yet, using this for now
+    RRTYPE_A:     1,
+    RRTYPE_AAAA: 28,
+    RRTYPE_TLSA: 52,
   
-  //Returns a domain record containing addresses, and txt records
-  getDomainRecord: function(domain, resolvipv4, resolvipv6) {
-    var domainRecord = this._doValidatedDomainLookup(domain, resolvipv4, resolvipv6);
-    var tlsa = this._doValidatedCertLookup(domain);
+    //Returns a domain record containing addresses, and txt records
+    getDomainRecord: function(domain, resolvipv4, resolvipv6) {
+	var domainRecord = this._doValidatedDomainLookup(domain, resolvipv4, resolvipv6);
+	var dr2 = this._doValidatedTLSALookup(domain);
     
-    domainRecord.tlsa = tlsa.tlsa;
-    domainRecord.setSecure(tlsa.secure);
-    domainRecord.setBogus(tlsa.bogus);
-    domainRecord.setWhy_bogus(tlsa.why_bogus);
-    
-    return domainRecord;
-  },
+	// set domainrecord with 
+	domainRecord.tlsa =       dr2.tlsa;
+	domainRecord.setSecure(   dr2.secure);
+	domainRecord.setBogus(    dr2.tlsa.bogus);
+	domainRecord.setWhy_bogus(dr2.why_bogus);
+	
+	return domainRecord;
+    },
   
-  _doValidatedDomainLookup: function(domain, resolvipv4, resolvipv6) {
+    _doValidatedDomainLookup: function(domain, resolvipv4, resolvipv6) {
+	org.os3sec.Extval.Extension.logMsg("Starting validated domain lookup using libunbound");
     
-    org.os3sec.Extval.Extension.logMsg("Starting validated domain lookup using libunbound");
+	var result = new org.os3sec.Extval.DomainRecord();
+	result.domain = domain;
     
-    var result = new org.os3sec.Extval.DomainRecord();
-    result.domain = domain;
-    
-    //do v6 and/or v6 resolving and add results
-    if(resolvipv4) {
-      var res = this._executeLibunbound(domain, this.RRTYPE_A);
-      result.addresses = result.addresses.concat(res.rdata);
-      result.setNxdomain(res.nxdomain != 0);
-      result.setSecure(res.secure != 0);
-      result.setBogus(res.bogus != 0);
-      result.setWhy_bogus(res.why_bogus);
-    }
-    if(resolvipv6) {
-      var res = this._executeLibunbound(domain, this.RRTYPE_AAAA);
-      result.addresses = result.addresses.concat(res.rdata);
-      result.setNxdomain(res.nxdomain != 0);
-      result.setSecure(res.secure != 0);
-      result.setBogus(res.bogus != 0);
-      result.setWhy_bogus(res.why_bogus);
-    }
-    
-    return result;
-  },
+	//do v6 and/or v6 resolving and add results
+	if(resolvipv4) {
+	    var res = this._executeLibunbound(domain, this.RRTYPE_A);
+	    result.addresses = result.addresses.concat(res.rdata);
+	    result.setNxdomain( res.nxdomain != 0);
+	    result.setSecure(   res.secure != 0);
+	    result.setBogus(    res.bogus != 0);
+	    result.setWhy_bogus(res.why_bogus);
+	}
+	if(resolvipv6) {
+	    var res = this._executeLibunbound(domain, this.RRTYPE_AAAA);
+	    result.addresses = result.addresses.concat(res.rdata);
+	    result.setNxdomain( res.nxdomain != 0);
+	    result.setSecure(   res.secure != 0);
+	    result.setBogus(    res.bogus != 0);
+	    result.setWhy_bogus(res.why_bogus);
+	}
+	
+	return result;
+    },
   
-  _doValidatedCertLookup: function(domain) {
-    org.os3sec.Extval.Extension.logMsg("Starting validated cert lookup (TLSA) using libunbound");
-    
-    var domainRecord = new org.os3sec.Extval.DomainRecord();
-    domainRecord.domain = domain;
-    
-    var res = this._executeLibunbound("_443._tcp."+domain, this.RRTYPE_TLSA);
-
-	for(var i=0 in res.rdata) {
-		/*
+    parseTLSARecord: function(tlsaStr) {
+	/*
          * Usage field
-		 * Value        Short description                         Ref.
-		 * -------------------------------------------------------------
-		 * 0            Reserved                                  [This]
-		 * 1            A PKIX certificate that identifies an end entity
-         * 2            A PKIX certification authority's certificate
-         * 3            A public key expressed as a PKIX SubjectPublicKeyInfo structure
+	 * Value        Short description                       
+	 * -------------------------------------------------------------
+	 * 0            CA Constraint
+	 * 1            Service certificate constraint
+         * 2            Trust anchor assertion
+         * 3            Domain issued certicate
          * 4-254        Unassigned
+	 *
+	 * Reference:   https://tools.ietf.org/id/draft-ietf-dane-protocol-23
+	 * and:         https://tools.ietf.org/html/rfc6394
          */
-		var usage = parseInt(res.rdata[i].substring(0,2));
+	var usage = parseInt(tlsaStr.substring(0,2));
 		
         /*
-           Selector field
-           0 -- Full certificate
-           1 -- SubjectPublicKeyInfo
-        */
-        var selector = parseInt(res.rdata[i].substring(2,4));
+         * Selector field
+         * 0 -- Full certificate
+         * 1 -- SubjectPublicKeyInfo
+         */
+	var selector = parseInt(tlsaStr.substring(2,4));
 
-		/*
+	/*
          * Matching type field
-		 * Value        Short description       Ref.
-		 * -----------------------------------------------------
-		 * 0            Full cert            [This]
+	 * Value        Short description       Ref.
+	 * -----------------------------------------------------
+	 * 0            Full cert            [This]
          * 1            SHA-256              NIST FIPS 180-2
          * 2            SHA-512              NIST FIPS 180-2
          * 3-254        Unassigned
          */
-		var matchingType = parseInt(res.rdata[i].substring(4,6));
+	var matchingType = parseInt(tlsaStr.substring(4,6));
 
-		var certAssociation = res.rdata[i].substring(6);
+	// This contains the certificate hash
+	var certAssociation = tlsaStr.substring(6);
 
-		org.os3sec.Extval.Extension.logMsg("Found certificate: Usage:" + usage + "Selector: " + selector + "matchingType: " + matchingType + " associated: " + certAssociation);
-		domainRecord.tlsa.push(new Array(usage,selector,matchingType,certAssociation.toUpperCase()));
-	}
-    domainRecord.setNxdomain(res.nxdomain != 0);
-    domainRecord.setSecure(res.secure != 0);
-    domainRecord.setBogus(res.bogus != 0);
-    domainRecord.setWhy_bogus(res.why_bogus);
+	return {usage:           usage,
+		selector:        selector,
+		matchingType:    matchingType,
+		certAssociation: certAssociation.toUpperCase()};
+    },
+
+    _doValidatedTLSALookup: function(domain) {
+	org.os3sec.Extval.Extension.logMsg("Starting validated cert lookup (TLSA) using libunbound");
     
-    return domainRecord;
-  },
+	var domainRecord = new org.os3sec.Extval.DomainRecord();
+	domainRecord.domain = domain;
+    
+	var res = this._executeLibunbound("_443._tcp."+domain, this.RRTYPE_TLSA);
+
+	for(var i=0 in res.rdata) {
+	    var tlsa = this.parseTLSARecord(res.rdata[i]);
+	    domainRecord.tlsa.push(tlsa);
+
+	    org.os3sec.Extval.Extension.logMsg("Found TLSA-Record: usage: " + tlsa.usage + 
+					       ", selector: " + tlsa.selector + 
+					       ", matchingType: " + tlsa.matchingType + 
+					       ", associated: " + tlsa.certAssociation);
+	}
+	domainRecord.setNxdomain( res.nxdomain  != 0);
+	domainRecord.setSecure(   res.secure    != 0);
+	domainRecord.setBogus(    res.bogus     != 0);
+	domainRecord.setWhy_bogus(res.why_bogus);
+    
+	return domainRecord;
+    },
 
   _executeLibunbound : function(domain, rrtype) {
-    org.os3sec.Extval.Extension.logMsg("execute libunbound for " + domain + " rrtype: " + rrtype); 
+    org.os3sec.Extval.Extension.logMsg("execute libunbound for " + domain + ", rrtype: " + rrtype); 
     var result = new org.os3sec.Extval.Libunbound.ub_result_ptr();
     
     var retval = org.os3sec.Extval.Libunbound.ub_resolve(org.os3sec.Extval.Libunbound.ctx, domain,
@@ -177,14 +197,14 @@ org.os3sec.Extval.DNSResolver = {
       1, // CLASS IN (internet)
       result.address());
     
-    var rdata = this.parseRdata(result.contents.len, result.contents.data,rrtype);
+    var rdata = this.parseRdata(result.contents.len, result.contents.data, rrtype);
     
     return {rdata: rdata,
-      nxdomain: result.contents.nxdomain.toString(),
-      secure: result.contents.secure.toString(),
-      bogus: result.contents.bogus.toString(),
-      why_bogus: result.contents.why_bogus.isNull() ? "" : result.contents.why_bogus.readString()
-    };
+	    nxdomain:  result.contents.nxdomain.toString(),
+	    secure:    result.contents.secure.toString(),
+	    bogus:     result.contents.bogus.toString(),
+	    why_bogus: result.contents.why_bogus.isNull() ? "" : result.contents.why_bogus.readString()
+	   };
   },
   
   //parse rdata array from result set
@@ -243,7 +263,7 @@ org.os3sec.Extval.DNSResolver = {
         for(var i=0; i<totalLines;i++) {
           //convert line to array of characters
           //parsing the complete string fails due to ending null character
-		  org.os3sec.Extval.Extension.logMsg("Length:"+lengths[i]);
+	  org.os3sec.Extval.Extension.logMsg("Length: "+lengths[i]);
           var tmp = new String();
           var line = ctypes.cast(rdata.contents[i], ctypes.uint8_t.array(lengths[i]).ptr);
           var hex;
@@ -265,7 +285,7 @@ org.os3sec.Extval.DNSResolver = {
     return results;
   },
   
-  //Converts a packed inet address to a human readable IP address string
+  //Converts a packed inet6 address to a human readable IP address string
   //Source: http://phpjs.org/functions/inet_ntop:882
   //original by: Theriault
   inet6_ntop : function(a) {

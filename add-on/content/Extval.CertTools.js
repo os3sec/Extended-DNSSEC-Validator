@@ -131,26 +131,40 @@ org.os3sec.Extval.CertTools = {
 	// With usage is 0 or 1, we need to validate against the Trusted CAs in the browser/OS;
 	// With usage is 2 or 3, we don't validage against Trusted CA's.
 
+	// Right now, we ignore this Trusted CA validation requirement. They can't be trusted anyway.
+	// We don't accept these values quietly. We complain loudly when we see them.
+
+	// TODO: make sure to validate DNSSEC against the Root Key and use 
+	// Certificate Patrol / Convergence / Perspectives or other verification mechanisms to 
+	// gain trust in the correctness of the certificate that no Trusted CA can give us.
+
 	org.os3sec.Extval.Extension.logMsg("check_tlsa, usage: " + tlsa.usage);
 
 	if (tlsa.usage == 2) {
 	    var chain = cert.getChain();
 	    // Start checking at element 1, as we cannot accept the sites' server certificate. 
+	    // keep goin up the chain until we have a match or run out.
 	    for (i=1; i < chain.length; i++)  {
 		var candidate = chain.queryElementAt(i, Components.interfaces.nsIX509Cert);
-		// add some checks to the candidate cert if needed
-		// keep goin up the chain until we have a match or run out.
 		if (this.check_cert(candidate, tlsa)) return true; 
 	    }
-	    return false;
+	    org.os3sec.Extval.Extension.logMsg("check_tlsa. Ran out of certificates. Reject validation!");
+	    return false; // we ran out.
 	}
 	else if (tlsa.usage == 3) {
 	    // Check the sites' server certificate
 	    return this.check_cert(cert, tlsa);
 	}
+
 	// Reject if usage is out of range.
 	org.os3sec.Extval.Extension.logMsg("check_tlsa got unexpected value for usage: " + tlsa.usage + 
 					   " Rejecting validation!");
+	if (tlsa.usage == 0 || tlsa.usage == 1) { 
+	    alert("Extendend DNSSEC validator only supports TLSA Usage values 2 and 3.\nWe got " + 
+		  tlsa.usage + "."
+		 );
+	}
+
 	return false;
     },
 

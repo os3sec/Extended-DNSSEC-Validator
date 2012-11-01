@@ -79,21 +79,21 @@ org.os3sec.Extval.CertTools = {
     org.os3sec.Extval.Extension.logMsg('browser_trusted = ' + browser_trusted);
     
     // check the certificate and its chain according to the tlsa-records
-    var dns_trusted = this.is_trusted_by_dns(cert, domainRecord);
+    var tlsa_trusted = this.is_trusted_by_tlsa(cert, domainRecord);
     
-    org.os3sec.Extval.Extension.logMsg('dns_trusted = ' + dns_trusted);
+    org.os3sec.Extval.Extension.logMsg('tlsa_trusted = ' + tlsa_trusted);
     
-    if(!dns_trusted && is_override_cert) {
+    if(!tlsa_trusted && is_override_cert) {
       org.os3sec.Extval.Extension.logMsg('Should remove override, dnssec not trusted');
       //this.removeOverride
       org.os3sec.Extval.UIHandler.setState(uri,org.os3sec.Extval.UIHandler.STATE_CERT_INVALID_DNSSEC);
     }
     
-    if(browser_trusted && !dns_trusted) {
+    if(browser_trusted && !tlsa_trusted) {
       org.os3sec.Extval.UIHandler.setState(uri,org.os3sec.Extval.UIHandler.STATE_CERT_CA);
     }
     
-    if(dns_trusted) {
+    if(tlsa_trusted) {
       //if trusted but not on secure connection, override the trust
       if(! secureConnection) {
 		if(this.do_override(window.gBrowser, cert)) {
@@ -114,7 +114,7 @@ org.os3sec.Extval.CertTools = {
   
   //checks if certificate can be validated using dnssec-tlsa
   //There can be multiple tlsa-records, one valid record suffices.
-  is_trusted_by_dns: function(cert, domainRecord) {
+  is_trusted_by_tlsa: function(cert, domainRecord) {
     for(i=0; i < domainRecord.tlsa.length; i++) {
         if ( this.check_tlsa(cert, domainRecord.tlsa[i]) ) {
             return true;

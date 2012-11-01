@@ -135,12 +135,17 @@ org.os3sec.Extval.CertTools = {
 
 	if (tlsa.usage == 2) {
 	    var chain = cert.getChain();
-	    for (i=0; i< chain.length; i++) {
-		if (this.check_cert(chain[i], tlsa)) return true; // keep going up the chain
+	    // Start checking at element 1, as we cannot accept the sites' server certificate. 
+	    for (i=1; i < chain.length; i++)  {
+		var candidate = chain.queryElementAt(i, Components.interfaces.nsIX509Cert);
+		// add some checks to the candidate cert if needed
+		// keep goin up the chain until we have a match or run out.
+		if (this.check_cert(candidate, tlsa)) return true; 
 	    }
 	    return false;
 	}
 	else if (tlsa.usage == 3) {
+	    // Check the sites' server certificate
 	    return this.check_cert(cert, tlsa);
 	}
 	// Reject if usage is out of range.
@@ -167,7 +172,7 @@ org.os3sec.Extval.CertTools = {
     else {
         // matchingType == 0 (exact content) is not supported yet
 	dump("TLSA record specifies full certificate info to match. Not supported. Rejecting validation!");
-        return false
+        return false;
     }
 
     var len = {};

@@ -246,11 +246,32 @@ org.os3sec.Extval.CertTools = {
   },
   
   get_invalid_cert_SSLStatus: function(uri) {
-    var recentCertsSvc = 
-		Components.classes["@mozilla.org/security/recentbadcerts;1"]
-			.getService(Components.interfaces.nsIRecentBadCertsService);
-		if (!recentCertsSvc)
-			return null;
+    var recentCertsSvc = null;
+    // FF <= 19
+    if (typeof Components.classes['@mozilla.org/security/recentbadcerts;1'] !== 'undefined') {
+        recentCertsSvc = Components.classes['@mozilla.org/security/recentbadcerts;1']
+            .getService(Components.interfaces.nsIRecentBadCertsService);
+    }
+    // FF >= 20
+    else if (typeof Components.classes['@mozilla.org/security/x509certdb;1'] !== 'undefined') {
+        var certDB = Components.classes['@mozilla.org/security/x509certdb;1']
+            .getService(Components.interfaces.nsIX509CertDB);
+        if (!certDB) return null;
+
+        var privateMode = false;
+        // Seem to be unavailable in Nightly 24.0a1, so just to be safe...
+        if (typeof Components.classes['@mozilla.org/privatebrowsing;1'] !== 'undefined')
+            privateMode = Components.classes['@mozilla.org/privatebrowsing;1']
+                .getService(Components.interfaces.nsIPrivateBrowsingService).privateBrowsingEnabled;
+
+        recentCertsSvc = certDB.getRecentBadCerts(privateMode);
+    }
+    else {
+        throw 'Failed to get "bad cert db" service (too new firefox version?)';
+    }
+
+    if (!recentCertsSvc)
+        return null;
 
 		var port = (uri.port == -1) ? 443 : uri.port;  
 
